@@ -115,6 +115,7 @@ def _jedi_loss(
     alpha,
     beta,
     compute_error=True,
+    **kwargs,
 ):
     """JEDI objective function: gradient of the KL divergence
     of p_ijs and q_ijs and Jensen-Shannon divergence of p'_ijs and q_ijs.
@@ -288,7 +289,6 @@ def _gradient_descent(
         kwargs["compute_error"] = check_convergence or i == n_iter - 1
 
         error, grad = objective(p, *args, **kwargs)
-
         inc = update * grad < 0.0
         dec = np.invert(inc)
         gains[inc] += 0.2
@@ -525,7 +525,6 @@ class JEDI(BaseEstimator):
             "min_grad_norm": self.min_grad_norm,
             "learning_rate": self.learning_rate_,
             "verbose": self.verbose,
-            "kwargs": dict(skip_num_points=0),
             "args": [
                 P,
                 P_prior,
