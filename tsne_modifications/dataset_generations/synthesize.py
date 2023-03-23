@@ -1,5 +1,60 @@
 import numpy as np
 
+
+def synthesize_8_4_4(size, seed=42):
+    np.random.seed(seed)
+    center = np.random.normal(0, 2, size=(4, 8))
+
+    array = np.zeros((size, 14))
+
+    tmp = np.zeros_like(array[:, :8])
+    wrong_answers = []
+    for i in range(size):
+        cluster = np.random.choice([1, 2, 3, 4], p=[0.1, 0.2, 0.3, 0.4])
+        tmp[i] = center[cluster - 1] + np.random.normal(0, cluster / 20, size=8)
+        wrong_answers.append(cluster)
+    array[:, :8] = tmp
+
+    center = np.random.normal(0, 2, size=(4, 4))
+    tmp = np.zeros_like(array[:, 8:12])
+    answers = []
+    for i in range(size):
+        cluster = np.random.choice([1, 2, 3, 4], p=[0.1, 0.2, 0.3, 0.4])
+        tmp[i] = center[cluster - 1] + np.random.normal(0, cluster / 20, size=4)
+        answers.append(cluster)
+    array[:, 8:12] = tmp
+
+    array[:, 12:] = np.random.normal(0, 0.1, size=(size, 2))
+    return array, answers, wrong_answers
+
+
+def synthesize_4_2_2(size, seed=42):
+    np.random.seed(seed)
+    center = np.eye(4)
+
+    array = np.zeros((size, 10))
+
+    tmp = np.zeros_like(array[:, :4])
+    wrong_answers = []
+    for i in range(size):
+        cluster = np.random.choice(4)
+        tmp[i] = center[cluster] + np.random.normal(0, 0.01, size=4)
+        wrong_answers.append(cluster + 1)
+    array[:, :4] = tmp
+
+    center = np.array([[1 / 3, 0], [0, 1 / 3]])
+    tmp = np.zeros_like(array[:, 4:6])
+    answers = []
+    for i in range(size):
+        cluster = np.random.choice(2)
+        tmp[i] = center[cluster] + np.random.normal(0, 0.01, size=2)
+        answers.append(cluster + 1)
+    array[:, 4:6] = tmp
+
+    array[:, 6:] = np.random.normal(0, 0.01, size=(size, 4))
+    return array, answers, wrong_answers
+
+
 def _dtsne_1():
     # Define centers of the 3 Gaussian clusters
     centers = np.array([[10, 0], [0, 15], [-10, 0]])
@@ -15,12 +70,13 @@ def _dtsne_1():
         # Draw n_points from the ith Gaussian
         cluster = np.random.randn(n_points, 2) + centers[i]
         cluster *= scales[i]
-        
+
         dataset = np.vstack((dataset, cluster))
         labels_i = np.full((n_points, 1), i, dtype=int)
         labels = np.vstack((labels, labels_i))
 
     return dataset, labels
+
 
 def _dtsne_2():
     # Define centers of the 3 Gaussian clusters
@@ -45,6 +101,7 @@ def _dtsne_2():
         labels = np.vstack((labels, labels_i))
 
     return dataset, labels
+
 
 def _dtsne_3():
     n_dims = 50
@@ -74,6 +131,7 @@ def _dtsne_3():
 
     return dataset, labels
 
+
 def _dtsne_4():
     n_dims = 50
 
@@ -99,6 +157,7 @@ def _dtsne_4():
         labels = np.vstack((labels, labels_i))
 
     return dataset, labels
+
 
 def _dtsne_5():
     n_dims = 50
@@ -132,6 +191,7 @@ def _dtsne_5():
         labels = np.vstack((labels, labels_i))
 
     return dataset, labels
+
 
 def _dtsne_6():
     # Define the number of dimensions
@@ -167,6 +227,7 @@ def _dtsne_6():
 
     return dataset, labels
 
+
 def get_tdsne_datasets():
     return [
         _dtsne_1(),
@@ -176,6 +237,7 @@ def get_tdsne_datasets():
         _dtsne_5(),
         _dtsne_6(),
     ]
+
 
 def synthesize(size, seed=42):
     np.random.seed(seed)

@@ -89,11 +89,14 @@ def _kl_divergence(
     """
     X_embedded = params.reshape(n_samples, n_components)
 
+    # Objective: C (Kullback-Leibler divergence of P and Q)
     if compute_error:
         kl_divergence = np.dot(P, np.log(np.maximum(P, MACHINE_EPSILON) / Q))
     else:
         kl_divergence = np.nan
 
+    # Gradient: dC/dY
+    # pdist always returns double precision distances. Thus we need to take
     grad = np.ndarray((n_samples, n_components), dtype=params.dtype)
     PQd = squareform((P - Q) * dist)
     for i in range(n_samples):
@@ -115,7 +118,6 @@ def _jedi_loss(
     alpha,
     beta,
     compute_error=True,
-    **kwargs,
 ):
     """JEDI objective function: gradient of the KL divergence
     of p_ijs and q_ijs and Jensen-Shannon divergence of p'_ijs and q_ijs.
@@ -158,14 +160,7 @@ def _jedi_loss(
     Q = np.maximum(dist / (2.0 * np.sum(dist)), MACHINE_EPSILON)
 
     kl_divergence, grad_kl = _kl_divergence(
-        params,
-        P,
-        degrees_of_freedom,
-        n_samples,
-        n_components,
-        dist,
-        Q,
-        compute_error,
+        params, P, degrees_of_freedom, n_samples, n_components, dist, Q, compute_error
     )
 
     PQ = beta * P_prior + (1 - beta) * Q
@@ -286,9 +281,11 @@ def _gradient_descent(
     tic = time()
     for i in range(it, n_iter):
         check_convergence = (i + 1) % n_iter_check == 0
+        # only compute the error when needed
         kwargs["compute_error"] = check_convergence or i == n_iter - 1
 
         error, grad = objective(p, *args, **kwargs)
+
         inc = update * grad < 0.0
         dec = np.invert(inc)
         gains[inc] += 0.2
@@ -373,7 +370,7 @@ class JEDI(BaseEstimator):
         optimization, used after 250 initial iterations with early
         exaggeration. Note that progress is only checked every 50 iterations so
         this value is rounded to the next multiple of 50.
-    min_grad_norm : float, default=1e-7
+    min_grad_norm : floaat, default=1e-7
         If the gradient norm is below this threshold, the optimization will
         be stopped.
     verbose : int, default=0
@@ -445,9 +442,12 @@ class JEDI(BaseEstimator):
         self.n_iter = n_iter
         self.n_iter_without_progress = n_iter_without_progress
         self.min_grad_norm = min_grad_norm
+        self.metric = "precomputed"
         self.init = "random"
         self.verbose = verbose
         self.random_state = random_state
+        self.method = "exact"
+        self.n_jobs = None
         self.alpha = alpha
         self.beta = beta
 
@@ -477,6 +477,7 @@ class JEDI(BaseEstimator):
         random_state = check_random_state(self.random_state)
 
         n_samples = X.shape[0]
+
         # Retrieve the distance matrix, either using the precomputed one or
         # computing it.
         distances = X
@@ -507,14 +508,7 @@ class JEDI(BaseEstimator):
             X_embedded=X_embedded,
         )
 
-    def _jedi(
-        self,
-        P,
-        P_prior,
-        degrees_of_freedom,
-        n_samples,
-        X_embedded,
-    ):
+    def _jedi(self, P, P_prior, degrees_of_freedom, n_samples, X_embedded, **kwargs):
         """Runs JEDI."""
 
         params = X_embedded.ravel()
@@ -525,6 +519,7 @@ class JEDI(BaseEstimator):
             "min_grad_norm": self.min_grad_norm,
             "learning_rate": self.learning_rate_,
             "verbose": self.verbose,
+            "kwargs": kwargs,
             "args": [
                 P,
                 P_prior,
@@ -544,7 +539,6 @@ class JEDI(BaseEstimator):
         # Learning schedule (part 1): do 250 iteration with lower momentum but
         # higher learning rate controlled via the early exaggeration parameter
         P *= self.early_exaggeration
-        P_prior *= self.early_exaggeration
         params, kl_divergence, it = _gradient_descent(obj_func, params, **opt_args)
         if self.verbose:
             print(
@@ -555,7 +549,6 @@ class JEDI(BaseEstimator):
         # Learning schedule (part 2): disable early exaggeration and finish
         # optimization with a higher momentum at 0.8
         P /= self.early_exaggeration
-        P_prior /= self.early_exaggeration
         remaining = self.n_iter - self._EXPLORATION_N_ITER
         if it < self._EXPLORATION_N_ITER or remaining > 0:
             opt_args["n_iter"] = self.n_iter
@@ -619,7 +612,6 @@ class JEDI(BaseEstimator):
         X_new : array of shape (n_samples, n_components)
             Embedding of the training data in low-dimensional space.
         """
-        assert len(P_prior.shape) == 1, "P_prior should be in squareform!"
         self._validate_params()
         self.fit_transform(X, P_prior)
         return self
