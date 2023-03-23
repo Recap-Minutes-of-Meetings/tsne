@@ -25,6 +25,7 @@ We will compare the performance of the tSNE modifications to the following basel
 * PCA (Principal Component Analysis)
 * MDS (Multidimensional Scaling)
 * UMAP (Uniform Manifold Approximation and Projection)
+* tSNE
 
 ## Implemented Techniques
 We will reimplement and apply the following modifications of the tSNE algorithm:
