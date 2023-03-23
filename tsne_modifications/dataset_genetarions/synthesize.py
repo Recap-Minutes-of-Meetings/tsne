@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def get_data_jedi(size, seed=42):
+def synthesize(size, seed=42):
     np.random.seed(seed)
     center = np.random.normal(0, 2, size=(4, 8))
 
